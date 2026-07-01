@@ -587,6 +587,366 @@ const TOOLS_DATA = {
       category: 'convert',
       tags: ['图片', '文字', 'ocr', '提取'],
       libs: []
+    },
+
+    // ===== 新增工具（第三批） =====
+
+    // --- 数据工具 ---
+    {
+      id: 'json-to-ts',
+      name: 'JSON转TypeScript',
+      desc: 'JSON生成TypeScript接口定义',
+      icon: 'TS',
+      category: 'data',
+      tags: ['json', 'typescript', '接口', '定义'],
+      libs: []
+    },
+    {
+      id: 'json-to-go',
+      name: 'JSON转Go结构体',
+      desc: 'JSON生成Go语言结构体',
+      icon: 'Go',
+      category: 'data',
+      tags: ['json', 'go', '结构体', '转换'],
+      libs: []
+    },
+    {
+      id: 'json-flatten',
+      name: 'JSON展平/嵌套',
+      desc: 'JSON对象展平与反向嵌套',
+      icon: '⇌',
+      category: 'data',
+      tags: ['json', '展平', '嵌套', '转换'],
+      libs: []
+    },
+    {
+      id: 'json-diff',
+      name: 'JSON对比',
+      desc: '比较两个JSON对象的差异',
+      icon: '≠',
+      category: 'data',
+      tags: ['json', '对比', '差异', 'diff'],
+      libs: []
+    },
+    {
+      id: 'xml-to-json',
+      name: 'XML转JSON',
+      desc: 'XML文档转换为JSON格式',
+      icon: 'X→J',
+      category: 'data',
+      tags: ['xml', 'json', '转换'],
+      libs: []
+    },
+
+    // --- 编码工具 ---
+    {
+      id: 'base32',
+      name: 'Base32编码/解码',
+      desc: 'Base32编码与解码转换',
+      icon: 'B32',
+      category: 'encoding',
+      tags: ['base32', '编码', '解码'],
+      libs: []
+    },
+    {
+      id: 'rot13',
+      name: 'ROT13密码',
+      desc: 'ROT13字母替换加密解密',
+      icon: 'R13',
+      category: 'encoding',
+      tags: ['rot13', '密码', '加密', '解密'],
+      libs: []
+    },
+    {
+      id: 'atbash',
+      name: 'Atbash密码',
+      desc: 'Atbash字母反向替换',
+      icon: 'AtB',
+      category: 'encoding',
+      tags: ['atbash', '密码', '加密', '替换'],
+      libs: []
+    },
+    {
+      id: 'vigenere',
+      name: 'Vigenère密码',
+      desc: '维吉尼亚密码加密与解密',
+      icon: 'Vig',
+      category: 'encoding',
+      tags: ['vigenere', '密码', '加密', '密钥'],
+      libs: []
+    },
+
+    // --- 文本工具 ---
+    {
+      id: 'slug-generator',
+      name: 'URL Slug生成',
+      desc: '将文本转换为URL友好的slug',
+      icon: 'Slg',
+      category: 'text',
+      tags: ['slug', 'url', '生成', '文本'],
+      libs: []
+    },
+    {
+      id: 'text-replacer',
+      name: '文本查找替换',
+      desc: '查找替换文本，支持正则',
+      icon: 'Rpl',
+      category: 'text',
+      tags: ['查找', '替换', '文本', '正则'],
+      libs: []
+    },
+    {
+      id: 'reverse-text',
+      name: '文本反转',
+      desc: '反转文本、单词顺序、大小写',
+      icon: '↔',
+      category: 'text',
+      tags: ['反转', '文本', '倒序'],
+      libs: []
+    },
+    {
+      id: 'morse-code',
+      name: '摩斯密码',
+      desc: '文本与摩斯密码互转',
+      icon: '·−',
+      category: 'text',
+      tags: ['摩斯', 'morse', '密码', '编码'],
+      libs: []
+    },
+    {
+      id: 'binary-text',
+      name: '二进制/文本互转',
+      desc: '二进制与文本字符串互转',
+      icon: '01',
+      category: 'text',
+      tags: ['二进制', '文本', '转换', '编码'],
+      libs: []
+    },
+    {
+      id: 'case-converter',
+      name: '命名格式转换',
+      desc: 'camelCase/snake_case/kebab-case/PascalCase互转',
+      icon: 'Aa',
+      category: 'text',
+      tags: ['命名', '转换', '驼峰', '蛇形'],
+      libs: []
+    },
+    {
+      id: 'leet-converter',
+      name: 'Leet语转换',
+      desc: '文本与Leet语(1337)互转',
+      icon: '1337',
+      category: 'text',
+      tags: ['leet', '1337', '编码', '转换'],
+      libs: []
+    },
+    {
+      id: 'pig-latin',
+      name: 'Pig Latin转换',
+      desc: '英文与Pig Latin互转',
+      icon: 'Pig',
+      category: 'text',
+      tags: ['pig', 'latin', '转换', '英语'],
+      libs: []
+    },
+
+    // --- 图片工具 ---
+    {
+      id: 'image-cropper',
+      name: '图片裁剪',
+      desc: '按尺寸裁剪图片',
+      icon: '✂',
+      category: 'image',
+      tags: ['图片', '裁剪', '尺寸'],
+      libs: []
+    },
+    {
+      id: 'image-color',
+      name: '图片取色',
+      desc: '提取图片主色调与配色',
+      icon: '🎨',
+      category: 'image',
+      tags: ['图片', '颜色', '取色', '调色板'],
+      libs: []
+    },
+    {
+      id: 'image-dataurl',
+      name: '图片转DataURL',
+      desc: '图片文件转Data URL字符串',
+      icon: 'DURL',
+      category: 'image',
+      tags: ['图片', 'dataurl', 'base64', '转换'],
+      libs: []
+    },
+
+    // --- 前端工具 ---
+    {
+      id: 'html-preview',
+      name: 'HTML实时预览',
+      desc: 'HTML/CSS/JS代码实时预览',
+      icon: '▶',
+      category: 'frontend',
+      tags: ['html', '预览', '实时', '编辑'],
+      libs: []
+    },
+    {
+      id: 'css-minifier',
+      name: 'CSS压缩',
+      desc: 'CSS代码压缩与格式化',
+      icon: 'CSS',
+      category: 'frontend',
+      tags: ['css', '压缩', '格式化', '美化'],
+      libs: []
+    },
+    {
+      id: 'js-minifier',
+      name: 'JS压缩',
+      desc: 'JavaScript代码压缩与格式化',
+      icon: 'JS',
+      category: 'frontend',
+      tags: ['javascript', '压缩', '格式化'],
+      libs: []
+    },
+    {
+      id: 'browser-info',
+      name: '浏览器信息',
+      desc: '显示当前浏览器与系统信息',
+      icon: 'ℹ',
+      category: 'frontend',
+      tags: ['浏览器', '信息', '系统', 'UA'],
+      libs: []
+    },
+    {
+      id: 'font-generator',
+      name: 'CSS字体生成',
+      desc: '生成@font-face CSS代码',
+      icon: 'Fnt',
+      category: 'frontend',
+      tags: ['字体', 'font-face', 'css', '生成'],
+      libs: []
+    },
+
+    // --- 网络工具 ---
+    {
+      id: 'mac-lookup',
+      name: 'MAC地址查询',
+      desc: '查询MAC地址厂商信息',
+      icon: 'MAC',
+      category: 'network',
+      tags: ['mac', '地址', '查询', '厂商'],
+      libs: []
+    },
+    {
+      id: 'ip-scanner',
+      name: 'IP网段计算',
+      desc: 'IP地址与子网掩码计算',
+      icon: '✜',
+      category: 'network',
+      tags: ['ip', '子网', '网段', '计算'],
+      libs: []
+    },
+    {
+      id: 'port-common',
+      name: '端口大全',
+      desc: '常用TCP/UDP端口速查',
+      icon: '🔌',
+      category: 'network',
+      tags: ['端口', 'tcp', 'udp', '速查'],
+      libs: []
+    },
+
+    // --- 实用工具 ---
+    {
+      id: 'percentage-calc',
+      name: '百分比计算器',
+      desc: '百分比、比例、增长率计算',
+      icon: '%',
+      category: 'utility',
+      tags: ['百分比', '计算', '比例', '增长率'],
+      libs: []
+    },
+    {
+      id: 'bmi-calculator',
+      name: 'BMI计算器',
+      desc: '身体质量指数计算与评估',
+      icon: 'BMI',
+      category: 'utility',
+      tags: ['bmi', '体重', '身高', '健康'],
+      libs: []
+    },
+    {
+      id: 'roman-numeral',
+      name: '罗马数字转换',
+      desc: '阿拉伯数字与罗马数字互转',
+      icon: 'IVX',
+      category: 'utility',
+      tags: ['罗马', '数字', '转换', 'roman'],
+      libs: []
+    },
+    {
+      id: 'number-to-words',
+      name: '数字转中文',
+      desc: '阿拉伯数字转中文大小写',
+      icon: '壹',
+      category: 'utility',
+      tags: ['数字', '中文', '大写', '金额'],
+      libs: []
+    },
+    {
+      id: 'password-strength',
+      name: '密码强度检测',
+      desc: '检测密码强度与安全性',
+      icon: '🔒',
+      category: 'utility',
+      tags: ['密码', '强度', '检测', '安全'],
+      libs: []
+    },
+    {
+      id: 'emoji-search',
+      name: 'Emoji搜索',
+      desc: '搜索并复制Emoji表情符号',
+      icon: '😊',
+      category: 'utility',
+      tags: ['emoji', '表情', '搜索', '复制'],
+      libs: []
+    },
+    {
+      id: 'keyboard-test',
+      name: '键盘测试',
+      desc: '测试键盘按键是否正常',
+      icon: '⌨',
+      category: 'utility',
+      tags: ['键盘', '测试', '按键'],
+      libs: []
+    },
+
+    // --- 文档转换 ---
+    {
+      id: 'csv-to-md',
+      name: 'CSV转Markdown',
+      desc: 'CSV数据转换为Markdown表格',
+      icon: 'C→M',
+      category: 'convert',
+      tags: ['csv', 'markdown', '表格', '转换'],
+      libs: []
+    },
+    {
+      id: 'markdown-table',
+      name: 'Markdown表格生成',
+      desc: '可视化编辑生成Markdown表格',
+      icon: 'Tbl',
+      category: 'convert',
+      tags: ['markdown', '表格', '生成', '编辑'],
+      libs: []
+    },
+    {
+      id: 'json-to-csv',
+      name: 'JSON转CSV',
+      desc: 'JSON数据转换为CSV格式',
+      icon: 'J→C',
+      category: 'convert',
+      tags: ['json', 'csv', '转换', '导出'],
+      libs: []
     }
   ]
 };

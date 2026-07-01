@@ -3030,4 +3030,1793 @@ date</textarea>
     });
   });
 
+  /* ================================================================
+     第三批：38个新增工具
+     ================================================================ */
+
+  /* ===== JSON to TypeScript ===== */
+  Router.register('json-to-ts', (container) => {
+    renderToolPage(container, 'JSON转TypeScript', 'JSON生成TypeScript接口定义', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 JSON</div>
+            <textarea class="tool-textarea" id="jtsInput" placeholder='粘贴JSON数据…'>{"name":"haome525","version":"1.0.0","tags":["tools","utils"],"config":{"port":8080,"debug":true}}</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">TypeScript 接口</div>
+            <div class="tool-output" id="jtsOutput">转换结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._jts.convert()">转换</button>
+          <button class="tool-btn" onclick="ToolsApp._jtsCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('jtsInput');
+      const output = document.getElementById('jtsOutput');
+      let lastResult = '';
+      function toTs(obj, name = 'Root') {
+        if (Array.isArray(obj)) {
+          if (obj.length === 0) return `interface ${name} {\n  [index: number]: unknown;\n}`;
+          const itemType = typeof obj[0] === 'object' && obj[0] !== null ? inferTypeName(name) : typeof obj[0];
+          return obj.length > 0 && typeof obj[0] === 'object' && obj[0] !== null ? toTs(obj[0], inferTypeName(name)) + `\n\ninterface ${name} extends Array<${inferTypeName(name)}> {}` : `interface ${name} extends Array<${itemType}> {}`;
+        }
+        if (obj !== null && typeof obj === 'object') {
+          const props = Object.entries(obj).map(([k, v]) => {
+            const t = typeof v;
+            let tsType = 'any';
+            if (v === null) tsType = 'null';
+            else if (t === 'string') tsType = 'string';
+            else if (t === 'number') tsType = 'number';
+            else if (t === 'boolean') tsType = 'boolean';
+            else if (Array.isArray(v)) tsType = `${inferTypeName(k)}[]`;
+            else if (t === 'object') tsType = inferTypeName(k);
+            return `  ${k}: ${tsType};`;
+          }).join('\n');
+          let result = `interface ${name} {\n${props}\n}`;
+          Object.entries(obj).forEach(([k, v]) => {
+            if (typeof v === 'object' && v !== null && !Array.isArray(v)) result += '\n\n' + toTs(v, inferTypeName(k));
+            if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'object' && v[0] !== null) result += '\n\n' + toTs(v[0], inferTypeName(k) + 'Item');
+          });
+          return result;
+        }
+        return '';
+      }
+      function inferTypeName(key) { return key.charAt(0).toUpperCase() + key.slice(1).replace(/[^a-zA-Z0-9]/g, ''); }
+      ToolsApp._jts = {
+        convert() {
+          try {
+            const obj = JSON.parse(input.value);
+            lastResult = toTs(obj);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._jtsCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== JSON to Go ===== */
+  Router.register('json-to-go', (container) => {
+    renderToolPage(container, 'JSON转Go结构体', 'JSON生成Go语言结构体', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 JSON</div>
+            <textarea class="tool-textarea" id="jtgInput" placeholder='粘贴JSON数据…'>{"name":"haome525","version":"1.0.0","port":8080,"debug":true}</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">Go 结构体</div>
+            <div class="tool-output" id="jtgOutput">转换结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._jtg.convert()">转换</button>
+          <button class="tool-btn" onclick="ToolsApp._jtgCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('jtgInput');
+      const output = document.getElementById('jtgOutput');
+      let lastResult = '';
+      function toGo(obj, name = 'Root') {
+        if (obj === null || typeof obj !== 'object') return '';
+        if (Array.isArray(obj)) return '';
+        const props = Object.entries(obj).map(([k, v]) => {
+          const t = typeof v;
+          let goType = 'interface{}';
+          if (v === null) goType = 'interface{}';
+          else if (t === 'string') goType = 'string';
+          else if (t === 'number') goType = v % 1 === 0 ? 'int' : 'float64';
+          else if (t === 'boolean') goType = 'bool';
+          else if (Array.isArray(v)) goType = `[]${v.length > 0 ? typeof v[0] === 'object' && v[0] !== null ? toTypeName(k) : goBaseType(v[0]) : 'interface{}'}`;
+          else if (t === 'object') goType = toTypeName(k);
+          return `\t${toTypeName(k)} ${goType} \`json:"${k}"\``;
+        }).join('\n');
+        let result = `type ${name} struct {\n${props}\n}`;
+        Object.entries(obj).forEach(([k, v]) => {
+          if (typeof v === 'object' && v !== null && !Array.isArray(v)) result += '\n\n' + toGo(v, toTypeName(k));
+        });
+        return result;
+      }
+      function goBaseType(v) { if (v === null) return 'interface{}'; if (typeof v === 'string') return 'string'; if (typeof v === 'number') return v % 1 === 0 ? 'int' : 'float64'; if (typeof v === 'boolean') return 'bool'; return 'interface{}'; }
+      function toTypeName(key) { return key.charAt(0).toUpperCase() + key.slice(1).replace(/[^a-zA-Z0-9]/g, ''); }
+      ToolsApp._jtg = {
+        convert() {
+          try {
+            const obj = JSON.parse(input.value);
+            lastResult = toGo(obj);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._jtgCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== JSON Flatten ===== */
+  Router.register('json-flatten', (container) => {
+    renderToolPage(container, 'JSON展平/嵌套', 'JSON对象展平与反向嵌套', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 JSON</div>
+            <textarea class="tool-textarea" id="jflInput" placeholder='粘贴JSON数据…'>{"user":{"name":"alice","address":{"city":"Beijing","zip":"100000"}},"tags":["a","b"]}</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="jflOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._jfl.flatten()">展平</button>
+          <button class="tool-btn" onclick="ToolsApp._jfl.nest()">嵌套</button>
+          <button class="tool-btn" onclick="ToolsApp._jflCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('jflInput');
+      const output = document.getElementById('jflOutput');
+      let lastResult = '';
+      function flatten(obj, prefix = '', sep = '.') {
+        let result = {};
+        for (const [k, v] of Object.entries(obj)) {
+          const key = prefix ? prefix + sep + k : k;
+          if (v !== null && typeof v === 'object' && !Array.isArray(v)) Object.assign(result, flatten(v, key, sep));
+          else result[key] = v;
+        }
+        return result;
+      }
+      function nest(obj, sep = '.') {
+        const result = {};
+        for (const [key, val] of Object.entries(obj)) {
+          const parts = key.split(sep);
+          let current = result;
+          for (let i = 0; i < parts.length - 1; i++) {
+            if (!current[parts[i]] || typeof current[parts[i]] !== 'object') current[parts[i]] = {};
+            current = current[parts[i]];
+          }
+          current[parts[parts.length - 1]] = val;
+        }
+        return result;
+      }
+      ToolsApp._jfl = {
+        flatten() {
+          try {
+            const obj = JSON.parse(input.value);
+            lastResult = JSON.stringify(flatten(obj), null, 2);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        },
+        nest() {
+          try {
+            const obj = JSON.parse(input.value);
+            lastResult = JSON.stringify(nest(obj), null, 2);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._jflCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== JSON Diff ===== */
+  Router.register('json-diff', (container) => {
+    renderToolPage(container, 'JSON对比', '比较两个JSON对象的差异', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">JSON A</div>
+            <textarea class="tool-textarea" id="jdifA" placeholder='{"name":"alice","age":25}'>{"name":"alice","age":25,"city":"Beijing"}</textarea>
+          </div>
+          <div class="tool-input-area">
+            <div class="tool-section-label">JSON B</div>
+            <textarea class="tool-textarea" id="jdifB" placeholder='{"name":"bob","age":30}'>{"name":"bob","age":30,"country":"CN"}</textarea>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._jdif.compare()">对比</button>
+          <button class="tool-btn" onclick="ToolsApp._jdifCopy()">复制</button>
+        </div>
+        <div class="tool-output" id="jdifOutput" style="min-height:200px">点击"对比"查看差异</div>`;
+      const inputA = document.getElementById('jdifA');
+      const inputB = document.getElementById('jdifB');
+      const output = document.getElementById('jdifOutput');
+      let lastResult = '';
+      function diff(a, b, path = '') {
+        const changes = [];
+        const allKeys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+        for (const k of allKeys) {
+          const p = path ? path + '.' + k : k;
+          if (!(k in a)) changes.push({ type: 'added', path: p, value: b[k] });
+          else if (!(k in b)) changes.push({ type: 'removed', path: p, value: a[k] });
+          else if (typeof a[k] !== typeof b[k] || typeof a[k] !== 'object' || a[k] === null || b[k] === null) {
+            if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) changes.push({ type: 'changed', path: p, from: a[k], to: b[k] });
+          } else if (!Array.isArray(a[k]) && !Array.isArray(b[k])) changes.push(...diff(a[k], b[k], p));
+          else if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) changes.push({ type: 'changed', path: p, from: a[k], to: b[k] });
+        }
+        return changes;
+      }
+      ToolsApp._jdif = {
+        compare() {
+          try {
+            const a = JSON.parse(inputA.value);
+            const b = JSON.parse(inputB.value);
+            const changes = diff(a, b);
+            if (changes.length === 0) { output.textContent = '✅ 两个JSON完全相同'; lastResult = '无差异'; return; }
+            const lines = changes.map(c => {
+              if (c.type === 'added') return `+ 新增: ${c.path} = ${JSON.stringify(c.value)}`;
+              if (c.type === 'removed') return `- 删除: ${c.path} = ${JSON.stringify(c.value)}`;
+              return `~ 修改: ${c.path}\n  旧值: ${JSON.stringify(c.from)}\n  新值: ${JSON.stringify(c.to)}`;
+            });
+            lastResult = lines.join('\n\n');
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._jdifCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== XML to JSON ===== */
+  Router.register('xml-to-json', (container) => {
+    renderToolPage(container, 'XML转JSON', 'XML文档转换为JSON格式', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 XML</div>
+            <textarea class="tool-textarea" id="xtjInput" placeholder="粘贴XML数据…"><root><name>haome525</name><version>1.0</version><items><item id="1">a</item><item id="2">b</item></items></root></textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">JSON 输出</div>
+            <div class="tool-output" id="xtjOutput">转换结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._xtj.convert()">转换</button>
+          <button class="tool-btn" onclick="ToolsApp._xtjCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('xtjInput');
+      const output = document.getElementById('xtjOutput');
+      let lastResult = '';
+      function xmlNodeToJson(node) {
+        if (node.nodeType === 3) return node.textContent.trim();
+        const obj = {};
+        if (node.attributes && node.attributes.length > 0) {
+          for (const attr of node.attributes) obj['@' + attr.name] = attr.value;
+        }
+        const children = [];
+        for (const child of node.childNodes) {
+          if (child.nodeType === 3 && !child.textContent.trim()) continue;
+          children.push(child);
+        }
+        if (children.length === 0 && Object.keys(obj).length === 0) return node.textContent.trim();
+        if (children.length === 1 && children[0].nodeType === 3) {
+          const text = children[0].textContent.trim();
+          if (Object.keys(obj).length === 0) return text;
+          obj['#text'] = text;
+          return obj;
+        }
+        for (const child of children) {
+          const val = xmlNodeToJson(child);
+          const tag = child.nodeName;
+          if (tag === '#text') continue;
+          if (obj[tag]) {
+            if (!Array.isArray(obj[tag])) obj[tag] = [obj[tag]];
+            obj[tag].push(val);
+          } else {
+            obj[tag] = val;
+          }
+        }
+        return obj;
+      }
+      ToolsApp._xtj = {
+        convert() {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(input.value, 'text/xml');
+            const err = doc.querySelector('parsererror');
+            if (err) { output.innerHTML = `<div class="tool-error">XML格式无效</div>`; return; }
+            const json = xmlNodeToJson(doc.documentElement);
+            lastResult = JSON.stringify(json, null, 2);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._xtjCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Base32 ===== */
+  Router.register('base32', (container) => {
+    renderToolPage(container, 'Base32编码/解码', 'Base32编码与解码转换', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="b32Input" placeholder="输入要编码或解码的文本…">Hello Base32!</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="b32Output">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._b32.encode()">编码</button>
+          <button class="tool-btn primary" onclick="ToolsApp._b32.decode()">解码</button>
+          <button class="tool-btn" onclick="ToolsApp._b32Copy()">复制</button>
+        </div>`;
+      const input = document.getElementById('b32Input');
+      const output = document.getElementById('b32Output');
+      let lastResult = '';
+      const b32Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      ToolsApp._b32 = {
+        encode() {
+          try {
+            const bytes = new TextEncoder().encode(input.value);
+            let bits = ''; for (const b of bytes) bits += b.toString(2).padStart(8, '0');
+            let result = '';
+            for (let i = 0; i < bits.length; i += 5) {
+              const chunk = bits.slice(i, i + 5).padEnd(5, '0');
+              result += b32Chars[parseInt(chunk, 2)];
+            }
+            while (result.length % 8 !== 0) result += '=';
+            lastResult = result; output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        },
+        decode() {
+          try {
+            const cleaned = input.value.replace(/=+$/, '').toUpperCase();
+            let bits = ''; for (const c of cleaned) { const idx = b32Chars.indexOf(c); if (idx >= 0) bits += idx.toString(2).padStart(5, '0'); }
+            const bytes = []; for (let i = 0; i + 7 < bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+            lastResult = new TextDecoder().decode(new Uint8Array(bytes));
+            output.textContent = lastResult;
+          } catch { output.innerHTML = '<div class="tool-error">Base32解码失败</div>'; }
+        }
+      };
+      ToolsApp._b32Copy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== ROT13 ===== */
+  Router.register('rot13', (container) => {
+    renderToolPage(container, 'ROT13密码', 'ROT13字母替换加密解密', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="rot13Input" placeholder="输入要加密或解密的文本…">Hello World!</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="rot13Output">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._rot13.transform()">ROT13转换</button>
+          <button class="tool-btn" onclick="ToolsApp._rot13Copy()">复制</button>
+        </div>`;
+      const input = document.getElementById('rot13Input');
+      const output = document.getElementById('rot13Output');
+      let lastResult = '';
+      ToolsApp._rot13 = {
+        transform() {
+          lastResult = input.value.replace(/[a-zA-Z]/g, c => {
+            const base = c <= 'Z' ? 65 : 97;
+            return String.fromCharCode((c.charCodeAt(0) - base + 13) % 26 + base);
+          });
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._rot13Copy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Atbash ===== */
+  Router.register('atbash', (container) => {
+    renderToolPage(container, 'Atbash密码', 'Atbash字母反向替换', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="atbInput" placeholder="输入文本…">Hello World!</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="atbOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._atb.transform()">Atbash转换</button>
+          <button class="tool-btn" onclick="ToolsApp._atbCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('atbInput');
+      const output = document.getElementById('atbOutput');
+      let lastResult = '';
+      ToolsApp._atb = {
+        transform() {
+          lastResult = input.value.replace(/[a-zA-Z]/g, c => {
+            const base = c <= 'Z' ? 65 : 97;
+            return String.fromCharCode(25 - (c.charCodeAt(0) - base) + base);
+          });
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._atbCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Vigenère ===== */
+  Router.register('vigenere', (container) => {
+    renderToolPage(container, 'Vigenère密码', '维吉尼亚密码加密与解密', (body) => {
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);align-items:center">
+          <span style="font-size:13px;color:var(--text-muted)">密钥:</span>
+          <input type="text" id="vigKey" value="KEY" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px;outline:none">
+        </div>
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="vigInput" placeholder="输入文本…">Hello World!</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="vigOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._vig.encrypt()">加密</button>
+          <button class="tool-btn" onclick="ToolsApp._vig.decrypt()">解密</button>
+          <button class="tool-btn" onclick="ToolsApp._vigCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('vigInput');
+      const key = document.getElementById('vigKey');
+      const output = document.getElementById('vigOutput');
+      let lastResult = '';
+      function vigenere(text, keyStr, decrypt) {
+        const keyUpper = keyStr.toUpperCase().replace(/[^A-Z]/g, '');
+        if (!keyUpper) return text;
+        let keyIdx = 0;
+        return text.replace(/[a-zA-Z]/g, c => {
+          const base = c <= 'Z' ? 65 : 97;
+          const shift = keyUpper.charCodeAt(keyIdx % keyUpper.length) - 65;
+          keyIdx++;
+          const offset = decrypt ? (26 - shift) % 26 : shift;
+          return String.fromCharCode((c.charCodeAt(0) - base + offset) % 26 + base);
+        });
+      }
+      ToolsApp._vig = {
+        encrypt() { lastResult = vigenere(input.value, key.value, false); output.textContent = lastResult; },
+        decrypt() { lastResult = vigenere(input.value, key.value, true); output.textContent = lastResult; }
+      };
+      ToolsApp._vigCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Slug Generator ===== */
+  Router.register('slug-generator', (container) => {
+    renderToolPage(container, 'URL Slug生成', '将文本转换为URL友好的slug', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="slugInput" placeholder="输入要转换的文本…">Hello World! 这是一段中文文本</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">Slug 结果</div>
+            <div class="tool-output" id="slugOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._slug.generate()">生成Slug</button>
+          <button class="tool-btn" onclick="ToolsApp._slugCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('slugInput');
+      const output = document.getElementById('slugOutput');
+      let lastResult = '';
+      ToolsApp._slug = {
+        generate() {
+          lastResult = input.value.toLowerCase().trim()
+            .replace(/[^\w\s-]/g, '').replace(/[\s_]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+          if (!lastResult) lastResult = input.value.replace(/\s+/g, '-');
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._slugCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Text Replacer ===== */
+  Router.register('text-replacer', (container) => {
+    renderToolPage(container, '文本查找替换', '查找替换文本，支持正则', (body) => {
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap">
+          <div style="flex-direction:column;display:flex;gap:4px;flex:1"><span class="tool-setting-label">查找</span><input type="text" id="trFind" value="World" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px"></div>
+          <div style="flex-direction:column;display:flex;gap:4px;flex:1"><span class="tool-setting-label">替换为</span><input type="text" id="trReplace" value="Universe" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px"></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">正则</span><input type="checkbox" id="trRegex" style="width:18px;height:18px"></div>
+          <div><button class="tool-btn primary" onclick="ToolsApp._tr.replace()" style="margin-top:16px">替换</button></div>
+        </div>
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="trInput" placeholder="输入文本…">Hello World! Welcome to the World.</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">替换结果</div>
+            <div class="tool-output" id="trOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn" onclick="ToolsApp._trCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('trInput');
+      const find = document.getElementById('trFind');
+      const replace = document.getElementById('trReplace');
+      const isRegex = document.getElementById('trRegex');
+      const output = document.getElementById('trOutput');
+      let lastResult = '';
+      ToolsApp._tr = {
+        replace() {
+          try {
+            const pattern = isRegex.checked ? new RegExp(find.value, 'g') : find.value;
+            lastResult = input.value.replace(pattern, replace.value);
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">正则错误: ${e.message}</div>`; }
+        }
+      };
+      ToolsApp._trCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Reverse Text ===== */
+  Router.register('reverse-text', (container) => {
+    renderToolPage(container, '文本反转', '反转文本、单词顺序、大小写', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="revInput" placeholder="输入要反转的文本…">Hello World from haome525</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="revOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn" onclick="ToolsApp._rev.reverseChars()">反转字符</button>
+          <button class="tool-btn" onclick="ToolsApp._rev.reverseWords()">反转单词顺序</button>
+          <button class="tool-btn" onclick="ToolsApp._rev.reverseLines()">反转行序</button>
+          <button class="tool-btn" onclick="ToolsApp._revCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('revInput');
+      const output = document.getElementById('revOutput');
+      let lastResult = '';
+      ToolsApp._rev = {
+        reverseChars() { lastResult = [...input.value].reverse().join(''); output.textContent = lastResult; },
+        reverseWords() { lastResult = input.value.split(/\s+/).reverse().join(' '); output.textContent = lastResult; },
+        reverseLines() { lastResult = input.value.split('\n').reverse().join('\n'); output.textContent = lastResult; }
+      };
+      ToolsApp._revCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Morse Code ===== */
+  Router.register('morse-code', (container) => {
+    renderToolPage(container, '摩斯密码', '文本与摩斯密码互转', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="morInput" placeholder="输入文本或摩斯密码…">SOS</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="morOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._mor.toMorse()">转摩斯码</button>
+          <button class="tool-btn" onclick="ToolsApp._mor.fromMorse()">摩斯码转文本</button>
+          <button class="tool-btn" onclick="ToolsApp._morCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('morInput');
+      const output = document.getElementById('morOutput');
+      let lastResult = '';
+      const morseMap = { 'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..', '0': '-----', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.', '.': '.-.-.-', ',': '--..--', '?': '..--..', "'": '.----.', '!': '-.-.--', '/': '-..-.', '(': '-.--.', ')': '-.--.-', '&': '.-...', ':': '---...', ';': '-.-.-.', '=': '-...-', '+': '.-.-.', '-': '-....-', '_': '..--.-', '"': '.-..-.', '@': '.--.-.' };
+      const revMorse = Object.fromEntries(Object.entries(morseMap).map(([k, v]) => [v, k]));
+      ToolsApp._mor = {
+        toMorse() {
+          lastResult = input.value.toUpperCase().split('').map(c => morseMap[c] || c).filter(Boolean).join(' ');
+          output.textContent = lastResult || '(无法转换)';
+        },
+        fromMorse() {
+          lastResult = input.value.trim().split(/\s+/).map(m => revMorse[m] || m).join('');
+          output.textContent = lastResult || '(无法转换)';
+        }
+      };
+      ToolsApp._morCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Binary/Text ===== */
+  Router.register('binary-text', (container) => {
+    renderToolPage(container, '二进制/文本互转', '二进制与文本字符串互转', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本或二进制</div>
+            <textarea class="tool-textarea" id="binInput" placeholder="输入文本或二进制…">Hello</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="binOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._bin.toBinary()">文本→二进制</button>
+          <button class="tool-btn primary" onclick="ToolsApp._bin.toText()">二进制→文本</button>
+          <button class="tool-btn" onclick="ToolsApp._binCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('binInput');
+      const output = document.getElementById('binOutput');
+      let lastResult = '';
+      ToolsApp._bin = {
+        toBinary() {
+          lastResult = Array.from(input.value).map(c => c.charCodeAt(0).toString(2).padStart(8, '0')).join(' ');
+          output.textContent = lastResult;
+        },
+        toText() {
+          lastResult = input.value.trim().split(/\s+/).map(b => String.fromCharCode(parseInt(b, 2))).join('');
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._binCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Case Converter ===== */
+  Router.register('case-converter', (container) => {
+    renderToolPage(container, '命名格式转换', 'camelCase/snake_case/kebab-case/PascalCase互转', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="caseInput" placeholder="输入要转换的文本…">helloWorldExample</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">转换结果</div>
+            <div class="tool-output" id="caseOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn" onclick="ToolsApp._case.camel()">camelCase</button>
+          <button class="tool-btn" onclick="ToolsApp._case.pascal()">PascalCase</button>
+          <button class="tool-btn" onclick="ToolsApp._case.snake()">snake_case</button>
+          <button class="tool-btn" onclick="ToolsApp._case.kebab()">kebab-case</button>
+          <button class="tool-btn" onclick="ToolsApp._case.upperSnake()">UPPER_SNAKE</button>
+          <button class="tool-btn" onclick="ToolsApp._caseCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('caseInput');
+      const output = document.getElementById('caseOutput');
+      let lastResult = '';
+      function splitWords(s) { return s.match(/[A-Z]?[a-z]+|[A-Z]+(?=[A-Z]|$|\d)|\d+/g) || [s]; }
+      ToolsApp._case = {
+        camel() { lastResult = splitWords(input.value).map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(''); output.textContent = lastResult; },
+        pascal() { lastResult = splitWords(input.value).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(''); output.textContent = lastResult; },
+        snake() { lastResult = splitWords(input.value).map(w => w.toLowerCase()).join('_'); output.textContent = lastResult; },
+        kebab() { lastResult = splitWords(input.value).map(w => w.toLowerCase()).join('-'); output.textContent = lastResult; },
+        upperSnake() { lastResult = splitWords(input.value).map(w => w.toUpperCase()).join('_'); output.textContent = lastResult; }
+      };
+      ToolsApp._caseCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Leet Converter ===== */
+  Router.register('leet-converter', (container) => {
+    renderToolPage(container, 'Leet语转换', '文本与Leet语(1337)互转', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入文本</div>
+            <textarea class="tool-textarea" id="leetInput" placeholder="输入文本或Leet…">Hello World</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="leetOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._leet.encode()">转Leet语</button>
+          <button class="tool-btn primary" onclick="ToolsApp._leet.decode()">Leet语转文本</button>
+          <button class="tool-btn" onclick="ToolsApp._leetCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('leetInput');
+      const output = document.getElementById('leetOutput');
+      let lastResult = '';
+      const leetMap = { 'a': '4', 'e': '3', 'l': '1', 'o': '0', 's': '5', 't': '7', 'A': '4', 'E': '3', 'L': '1', 'O': '0', 'S': '5', 'T': '7' };
+      const revLeet = { '4': 'a', '3': 'e', '1': 'l', '0': 'o', '5': 's', '7': 't' };
+      ToolsApp._leet = {
+        encode() { lastResult = input.value.replace(/[aAeElLoOsStT]/g, c => leetMap[c] || c); output.textContent = lastResult; },
+        decode() { lastResult = input.value.replace(/[4|3|1|0|5|7]/g, c => revLeet[c] || c); output.textContent = lastResult; }
+      };
+      ToolsApp._leetCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Pig Latin ===== */
+  Router.register('pig-latin', (container) => {
+    renderToolPage(container, 'Pig Latin转换', '英文与Pig Latin互转', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入英文</div>
+            <textarea class="tool-textarea" id="pigInput" placeholder="输入英文文本…">Hello World</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">Pig Latin</div>
+            <div class="tool-output" id="pigOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._pig.convert()">转换为Pig Latin</button>
+          <button class="tool-btn" onclick="ToolsApp._pigCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('pigInput');
+      const output = document.getElementById('pigOutput');
+      let lastResult = '';
+      ToolsApp._pig = {
+        convert() {
+          lastResult = input.value.split(/\s+/).map(w => {
+            const m = w.match(/^([^aeiouAEIOU]*)(.*)$/);
+            if (!m) return w;
+            return m[1] ? m[2] + m[1] + 'ay' : w + 'way';
+          }).join(' ');
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._pigCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Image Cropper ===== */
+  Router.register('image-cropper', (container) => {
+    renderToolPage(container, '图片裁剪', '按尺寸裁剪图片', (body) => {
+      body.innerHTML = `
+        <div class="drop-zone" id="cropDropZone">
+          <div class="drop-zone-icon">🖼️</div>
+          <p>拖拽图片到此处，或 <label for="cropFileInput" style="color:var(--accent);cursor:pointer;text-decoration:underline">点击选择文件</label></p>
+          <input type="file" id="cropFileInput" accept="image/*" style="display:none">
+        </div>
+        <div style="margin-top:var(--space-md);display:flex;gap:var(--space-md);flex-wrap:wrap;align-items:end">
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">宽度(px)</span><input type="number" id="cropW" value="200" min="1" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">高度(px)</span><input type="number" id="cropH" value="200" min="1" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"></div>
+          <button class="tool-btn primary" onclick="ToolsApp._crop.do()">裁剪</button>
+        </div>
+        <div id="cropResult" style="margin-top:var(--space-lg);display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg)">
+            <div><div class="tool-section-label">原图</div><div id="cropOrig" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden"></div></div>
+            <div><div class="tool-section-label">裁剪结果</div><div id="cropResultPreview" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden"></div></div>
+          </div>
+          <div class="tool-actions"><button class="tool-btn" onclick="ToolsApp._crop.download()">下载</button></div>
+        </div>`;
+      let imgData = null, croppedBlob = null;
+      const drop = document.getElementById('cropDropZone');
+      const fileInput = document.getElementById('cropFileInput');
+      function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imgData = e.target.result;
+          document.getElementById('cropOrig').innerHTML = `<img src="${imgData}" style="max-width:100%;display:block">`;
+          document.getElementById('cropResult').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+      drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+      fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+      ToolsApp._crop = {
+        do() {
+          if (!imgData) return;
+          const w = parseInt(document.getElementById('cropW').value) || 200;
+          const h = parseInt(document.getElementById('cropH').value) || 200;
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            canvas.toBlob(blob => {
+              croppedBlob = blob;
+              document.getElementById('cropResultPreview').innerHTML = `<img src="${URL.createObjectURL(blob)}" style="max-width:100%;display:block">`;
+            });
+          };
+          img.src = imgData;
+        },
+        download() { if (croppedBlob) downloadFile(croppedBlob, 'cropped.png', 'image/png'); }
+      };
+    });
+  });
+
+  /* ===== Image Color Extractor ===== */
+  Router.register('image-color', (container) => {
+    renderToolPage(container, '图片取色', '提取图片主色调与配色', (body) => {
+      body.innerHTML = `
+        <div class="drop-zone" id="icDropZone">
+          <div class="drop-zone-icon">🎨</div>
+          <p>拖拽图片到此处，或 <label for="icFileInput" style="color:var(--accent);cursor:pointer;text-decoration:underline">点击选择文件</label></p>
+          <input type="file" id="icFileInput" accept="image/*" style="display:none">
+        </div>
+        <div id="icResult" style="margin-top:var(--space-lg);display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg)">
+            <div><div class="tool-section-label">图片</div><div id="icPreview" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:300px"></div></div>
+            <div><div class="tool-section-label">提取的颜色</div><div id="icColors" style="display:flex;flex-wrap:wrap;gap:var(--space-sm)"></div></div>
+          </div>
+        </div>`;
+      const drop = document.getElementById('icDropZone');
+      const fileInput = document.getElementById('icFileInput');
+      function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            document.getElementById('icPreview').innerHTML = `<img src="${e.target.result}" style="max-width:100%;display:block">`;
+            const canvas = document.createElement('canvas');
+            canvas.width = 100; canvas.height = 100;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, 100, 100);
+            const data = ctx.getImageData(0, 0, 100, 100).data;
+            const colorMap = {};
+            for (let i = 0; i < data.length; i += 16) {
+              const r = Math.round(data[i] / 32) * 32, g = Math.round(data[i+1] / 32) * 32, b = Math.round(data[i+2] / 32) * 32;
+              const key = r + ',' + g + ',' + b;
+              colorMap[key] = (colorMap[key] || 0) + 1;
+            }
+            const sorted = Object.entries(colorMap).sort((a, b) => b[1] - a[1]).slice(0, 12);
+            const container = document.getElementById('icColors');
+            container.innerHTML = sorted.map(([key]) => {
+              const [r, g, b] = key.split(',');
+              const hex = '#' + [r, g, b].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+              return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px"><div style="width:40px;height:40px;border-radius:8px;background:${hex};border:1px solid var(--border);cursor:pointer" onclick="ToolsApp.showToast('${hex}')"></div><span style="font-size:10px;color:var(--text-muted)">${hex}</span></div>`;
+            }).join('');
+            document.getElementById('icResult').style.display = 'block';
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+      drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+      fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+    });
+  });
+
+  /* ===== Image to DataURL ===== */
+  Router.register('image-dataurl', (container) => {
+    renderToolPage(container, '图片转DataURL', '图片文件转Data URL字符串', (body) => {
+      body.innerHTML = `
+        <div class="drop-zone" id="durlDrop">
+          <div class="drop-zone-icon">🖼️</div>
+          <p>拖拽图片到此处，或 <label for="durlFileInput" style="color:var(--accent);cursor:pointer;text-decoration:underline">点击选择文件</label></p>
+          <input type="file" id="durlFileInput" accept="image/*" style="display:none">
+        </div>
+        <div id="durlResult" style="margin-top:var(--space-lg);display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg)">
+            <div><div class="tool-section-label">预览</div><div id="durlPreview" style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;max-width:200px"></div></div>
+            <div><div class="tool-section-label">Data URL</div><div class="tool-output" id="durlOutput" style="min-height:200px;word-break:break-all;font-size:11px">—</div></div>
+          </div>
+          <div class="tool-actions"><button class="tool-btn" onclick="ToolsApp._durlCopy()">复制Data URL</button></div>
+        </div>`;
+      let lastDataUrl = '';
+      const drop = document.getElementById('durlDrop');
+      const fileInput = document.getElementById('durlFileInput');
+      function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          lastDataUrl = e.target.result;
+          document.getElementById('durlPreview').innerHTML = `<img src="${lastDataUrl}" style="max-width:100%;display:block">`;
+          document.getElementById('durlOutput').textContent = lastDataUrl;
+          document.getElementById('durlResult').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      }
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+      drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
+      fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+      ToolsApp._durlCopy = () => copyText(lastDataUrl);
+    });
+  });
+
+  /* ===== HTML Preview ===== */
+  Router.register('html-preview', (container) => {
+    renderToolPage(container, 'HTML实时预览', 'HTML/CSS/JS代码实时预览', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout" style="min-height:500px">
+          <div class="tool-input-area">
+            <div class="tool-section-label">HTML/CSS/JS 源码</div>
+            <textarea class="tool-textarea" id="htmlPrevInput" style="min-height:450px" placeholder="输入HTML代码…"><!DOCTYPE html>
+<html>
+<head><style>body{font-family:sans-serif;padding:20px;background:#f5f5f5}h1{color:#C8341B}</style></head>
+<body>
+  <h1>Hello haome525!</h1>
+  <p>实时预览示例</p>
+  <script>document.querySelector('p').textContent += ' - JS已执行'</script>
+</body>
+</html></textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">预览</div>
+            <div id="htmlPrevFrame" style="flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:#fff"></div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._htmlPrev.preview()">预览</button>
+          <button class="tool-btn" onclick="ToolsApp._htmlPrevCopy()">复制源码</button>
+        </div>`;
+      const input = document.getElementById('htmlPrevInput');
+      const frame = document.getElementById('htmlPrevFrame');
+      let lastResult = '';
+      ToolsApp._htmlPrev = {
+        preview() {
+          lastResult = input.value;
+          frame.innerHTML = lastResult;
+        }
+      };
+      ToolsApp._htmlPrevCopy = () => copyText(lastResult);
+      ToolsApp._htmlPrev.preview();
+    });
+  });
+
+  /* ===== CSS Minifier ===== */
+  Router.register('css-minifier', (container) => {
+    renderToolPage(container, 'CSS压缩', 'CSS代码压缩与格式化', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 CSS</div>
+            <textarea class="tool-textarea" id="cssmInput" placeholder="粘贴CSS代码…">/* 注释 */
+body {
+  font-family: sans-serif;
+  color: #333;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="cssmOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._cssm.minify()">压缩</button>
+          <button class="tool-btn" onclick="ToolsApp._cssm.beautify()">格式化</button>
+          <button class="tool-btn" onclick="ToolsApp._cssmCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('cssmInput');
+      const output = document.getElementById('cssmOutput');
+      let lastResult = '';
+      ToolsApp._cssm = {
+        minify() {
+          lastResult = input.value.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/\s*([{}:;,])\s*/g, '$1').replace(/;\s*}/g, '}').trim();
+          output.textContent = lastResult;
+        },
+        beautify() {
+          const cleaned = input.value.replace(/\/\*[\s\S]*?\*\//g, '');
+          let indent = 0;
+          lastResult = cleaned.split('').reduce((acc, c) => {
+            if (c === '{') return acc + ' {\n' + '  '.repeat(++indent);
+            if (c === '}') return acc + '\n' + '  '.repeat(--indent) + '}';
+            if (c === ';') return acc + ';\n' + '  '.repeat(indent);
+            return acc + c;
+          }, '').replace(/,\n\s*/g, ', ').replace(/\n{2,}/g, '\n').trim();
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._cssmCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== JS Minifier ===== */
+  Router.register('js-minifier', (container) => {
+    renderToolPage(container, 'JS压缩', 'JavaScript代码压缩与格式化', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 JavaScript</div>
+            <textarea class="tool-textarea" id="jsmInput" placeholder="粘贴JavaScript代码…">// 注释
+function hello(name) {
+  console.log("Hello, " + name + "!");
+  return true;
+}
+
+const arr = [1, 2, 3];
+arr.forEach(item => {
+  console.log(item);
+});</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">输出结果</div>
+            <div class="tool-output" id="jsmOutput">结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._jsm.minify()">压缩</button>
+          <button class="tool-btn" onclick="ToolsApp._jsm.beautify()">格式化</button>
+          <button class="tool-btn" onclick="ToolsApp._jsmCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('jsmInput');
+      const output = document.getElementById('jsmOutput');
+      let lastResult = '';
+      ToolsApp._jsm = {
+        minify() {
+          lastResult = input.value.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ').replace(/\s*([{}:;,()=+\-*/])\s*/g, '$1').trim();
+          output.textContent = lastResult;
+        },
+        beautify() {
+          const cleaned = input.value.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
+          let indent = 0;
+          lastResult = cleaned.split('').reduce((acc, c) => {
+            if (c === '{' || c === '(') return acc + c + '\n' + '  '.repeat(++indent);
+            if (c === '}' || c === ')') return acc + '\n' + '  '.repeat(--indent) + c;
+            if (c === ';') return acc + ';\n' + '  '.repeat(indent);
+            return acc + c;
+          }, '').replace(/\n{3,}/g, '\n\n').trim();
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._jsmCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Browser Info ===== */
+  Router.register('browser-info', (container) => {
+    renderToolPage(container, '浏览器信息', '显示当前浏览器与系统信息', (body) => {
+      const n = navigator;
+      const info = [
+        ['User Agent', n.userAgent],
+        ['浏览器', (() => { const ua = n.userAgent; if (ua.includes('Edg/')) return 'Edge ' + ua.match(/Edg\/([\d.]+)/)?.[1]; if (ua.includes('Chrome/')) return 'Chrome ' + ua.match(/Chrome\/([\d.]+)/)?.[1]; if (ua.includes('Firefox/')) return 'Firefox ' + ua.match(/Firefox\/([\d.]+)/)?.[1]; if (ua.includes('Safari/')) return 'Safari ' + ua.match(/Version\/([\d.]+)/)?.[1]; return 'Unknown'; })(),
+        ['操作系统', (() => { const p = n.platform; if (p.includes('Win')) return 'Windows'; if (p.includes('Mac')) return 'macOS'; if (p.includes('Linux')) return 'Linux'; return p; })(),
+        ['语言', n.language],
+        ['屏幕分辨率', screen.width + '×' + screen.height],
+        ['可用屏幕', screen.availWidth + '×' + screen.availHeight],
+        ['颜色深度', screen.colorDepth + ' bit'],
+        ['像素比', window.devicePixelRatio],
+        ['Cookie 启用', navigator.cookieEnabled ? '是' : '否'],
+        ['在线状态', navigator.onLine ? '在线' : '离线'],
+        ['CPU核心', navigator.hardwareConcurrency || '未知'],
+        ['内存', navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '未知'],
+        ['是否触屏', 'ontouchstart' in window ? '是' : '否'],
+        ['当前时间', new Date().toLocaleString('zh-CN')],
+        ['时区', Intl.DateTimeFormat().resolvedOptions().timeZone],
+        ['页面URL', location.href],
+        ['来源', document.referrer || '直接访问']
+      ];
+      body.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm)">${info.map(([k, v], i) => `<div style="padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><strong>${k}:</strong> <span style="color:var(--text-secondary)">${v || '—'}</span></div>`).join('')}</div>`;
+    });
+  });
+
+  /* ===== Font Generator ===== */
+  Router.register('font-generator', (container) => {
+    renderToolPage(container, 'CSS字体生成', '生成@font-face CSS代码', (body) => {
+      body.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-md);margin-bottom:var(--space-md)">
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">字体名称</span><input type="text" id="fontName" value="MyFont" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">字体文件URL</span><input type="text" id="fontUrl" value="/fonts/myfont.woff2" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">字重</span><select id="fontWeight" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+            <option value="normal">normal (400)</option><option value="bold">bold (700)</option><option value="100">100</option><option value="200">200</option><option value="300">300</option><option value="500">500</option><option value="600">600</option><option value="800">800</option><option value="900">900</option>
+          </select></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">字体样式</span><select id="fontStyle" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+            <option value="normal">normal</option><option value="italic">italic</option><option value="oblique">oblique</option>
+          </select></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">格式</span><select id="fontFormat" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+            <option value="woff2">WOFF2</option><option value="woff">WOFF</option><option value="ttf">TTF</option><option value="eot">EOT</option><option value="svg">SVG</option>
+          </select></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">unicode-range</span><input type="text" id="fontUnicode" placeholder="可选" style="padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"></div>
+        </div>
+        <button class="tool-btn primary" onclick="ToolsApp._font.gen()">生成CSS</button>
+        <div class="tool-output" id="fontOutput" style="min-height:150px;margin-top:var(--space-md)">—</div>
+        <div class="tool-actions">
+          <button class="tool-btn" onclick="ToolsApp._fontCopy()">复制</button>
+        </div>`;
+      let lastResult = '';
+      ToolsApp._font = {
+        gen() {
+          const name = document.getElementById('fontName').value.trim();
+          const url = document.getElementById('fontUrl').value.trim();
+          const weight = document.getElementById('fontWeight').value;
+          const style = document.getElementById('fontStyle').value;
+          const format = document.getElementById('fontFormat').value;
+          const unicode = document.getElementById('fontUnicode').value.trim();
+          let css = `@font-face {\n  font-family: '${name}';\n  src: url('${url}') format('${format}');\n  font-weight: ${weight};\n  font-style: ${style};`;
+          if (unicode) css += `\n  unicode-range: ${unicode};`;
+          css += '\n}';
+          lastResult = css;
+          document.getElementById('fontOutput').textContent = css;
+        }
+      };
+      ToolsApp._fontCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== MAC Lookup ===== */
+  Router.register('mac-lookup', (container) => {
+    renderToolPage(container, 'MAC地址查询', '查询MAC地址厂商信息', (body) => {
+      const macDB = {
+        '00:00:0C': 'Cisco Systems', '00:AA:00': 'Intel', '00:1B:44': 'Dell', '00:14:22': 'Dell',
+        '00:19:D1': 'HP', '00:1A:4B': 'Lenovo', '00:21:5A': 'Apple', '00:23:32': 'Apple',
+        '00:24:36': 'Microsoft', '00:25:00': 'Apple', '00:26:08': 'IBM', '00:50:56': 'VMware',
+        '00:05:69': 'VMware', '00:0C:29': 'VMware', '00:1C:42': 'Parallels', '00:50:EB': 'Microsoft',
+        '00:16:3E': 'Xen', '00:15:5D': 'Hyper-V', '08:00:27': 'Oracle VM', '52:54:00': 'QEMU',
+        '00:E0:4C': 'Realtek', '00:90:27': 'Atheros', '00:1A:11': 'Asus', '00:18:F8': 'Acer',
+        'F8:1A:67': 'TP-Link', 'D4:6E:0E': 'Xiaomi', 'A0:C5:89': 'Huawei', '08:10:77': 'Huawei',
+        '68:DB:F5': 'Xiaomi', '8C:DE:52': 'Xiaomi', 'E8:99:C4': 'Cisco Meraki', '20:DF:3F': 'Yeelink'
+      };
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);align-items:center">
+          <input type="text" id="macInput" placeholder="输入MAC地址，如 00:1B:44:11:22:33" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:14px;outline:none">
+          <button class="tool-btn primary" onclick="ToolsApp._mac.lookup()">查询</button>
+        </div>
+        <div class="tool-output" id="macOutput" style="min-height:100px">输入MAC地址查询厂商</div>`;
+      const input = document.getElementById('macInput');
+      const output = document.getElementById('macOutput');
+      ToolsApp._mac = {
+        lookup() {
+          const mac = input.value.trim().toUpperCase();
+          if (!mac) { output.textContent = '请输入MAC地址'; return; }
+          const oui = mac.replace(/[^A-F0-9]/g, '').slice(0, 6).replace(/(..)(..)(..)/, '$1:$2:$3');
+          const vendor = macDB[oui];
+          if (vendor) {
+            output.textContent = [`MAC地址: ${mac}`, `组织唯一标识(OUI): ${oui}`, `厂商: ${vendor}`].join('\n');
+          } else {
+            output.innerHTML = `<div class="tool-error">未找到厂商信息 (OUI: ${oui})</div>`;
+          }
+        }
+      };
+    });
+  });
+
+  /* ===== IP Scanner / Subnet Calculator ===== */
+  Router.register('ip-scanner', (container) => {
+    renderToolPage(container, 'IP网段计算', 'IP地址与子网掩码计算', (body) => {
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);align-items:center">
+          <input type="text" id="subnetIp" value="192.168.1.0" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-family:var(--font-mono);font-size:14px;outline:none">
+          <span style="color:var(--text-muted)">/</span>
+          <input type="number" id="subnetMask" value="24" min="0" max="32" style="width:70px;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px;outline:none;text-align:center">
+          <button class="tool-btn primary" onclick="ToolsApp._subnet.calc()">计算</button>
+        </div>
+        <div class="tool-output" id="subnetOutput" style="min-height:250px">输入IP和掩码后点击"计算"</div>`;
+      const ipInput = document.getElementById('subnetIp');
+      const maskInput = document.getElementById('subnetMask');
+      const output = document.getElementById('subnetOutput');
+      ToolsApp._subnet = {
+        calc() {
+          const parts = ipInput.value.trim().split('.').map(Number);
+          if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) { output.textContent = '无效IP地址'; return; }
+          const mask = parseInt(maskInput.value) || 24;
+          const ipInt = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0;
+          const maskInt = ~(0xFFFFFFFF >>> mask) >>> 0;
+          const network = (ipInt & maskInt) >>> 0;
+          const broadcast = (network | ~maskInt) >>> 0;
+          const firstHost = mask >= 31 ? network : network + 1;
+          const lastHost = mask >= 31 ? broadcast : broadcast - 1;
+          const hosts = mask >= 31 ? (mask === 31 ? 2 : 1) : Math.pow(2, 32 - mask) - 2;
+          function toIp(n) { return [(n >>> 24) & 0xFF, (n >>> 16) & 0xFF, (n >>> 8) & 0xFF, n & 0xFF].join('.'); }
+          output.textContent = [
+            `IP地址:         ${toIp(ipInt)}`,
+            `子网掩码:       ${toIp(maskInt)} (/${mask})`,
+            `网络地址:       ${toIp(network)}`,
+            `广播地址:       ${toIp(broadcast)}`,
+            `可用主机数:     ${hosts}`,
+            `可用地址范围:   ${toIp(firstHost)} ~ ${toIp(lastHost)}`,
+            `通配符掩码:     ${toIp(~maskInt >>> 0)}`
+          ].join('\n');
+        }
+      };
+      ToolsApp._subnet.calc();
+    });
+  });
+
+  /* ===== Common Ports ===== */
+  Router.register('port-common', (container) => {
+    renderToolPage(container, '端口大全', '常用TCP/UDP端口速查', (body) => {
+      const ports = [
+        { port: 20, name: 'FTP Data', proto: 'TCP', desc: '文件传输协议（数据）' },
+        { port: 21, name: 'FTP Control', proto: 'TCP', desc: '文件传输协议（控制）' },
+        { port: 22, name: 'SSH', proto: 'TCP', desc: '安全Shell/SCP' },
+        { port: 23, name: 'Telnet', proto: 'TCP', desc: '远程登录' },
+        { port: 25, name: 'SMTP', proto: 'TCP', desc: '简单邮件传输' },
+        { port: 53, name: 'DNS', proto: 'UDP/TCP', desc: '域名系统' },
+        { port: 67, name: 'DHCP Server', proto: 'UDP', desc: '动态主机配置服务端' },
+        { port: 68, name: 'DHCP Client', proto: 'UDP', desc: '动态主机配置客户端' },
+        { port: 80, name: 'HTTP', proto: 'TCP', desc: '超文本传输协议' },
+        { port: 110, name: 'POP3', proto: 'TCP', desc: '邮局协议v3' },
+        { port: 143, name: 'IMAP', proto: 'TCP', desc: '互联网消息访问协议' },
+        { port: 161, name: 'SNMP', proto: 'UDP', desc: '简单网络管理协议' },
+        { port: 389, name: 'LDAP', proto: 'TCP', desc: '轻量目录访问协议' },
+        { port: 443, name: 'HTTPS', proto: 'TCP', desc: '安全HTTP' },
+        { port: 445, name: 'SMB', proto: 'TCP', desc: 'Windows文件共享' },
+        { port: 465, name: 'SMTPS', proto: 'TCP', desc: '安全SMTP' },
+        { port: 500, name: 'IPsec', proto: 'UDP', desc: 'IP安全' },
+        { port: 514, name: 'Syslog', proto: 'UDP', desc: '系统日志' },
+        { port: 587, name: 'SMTP Submission', proto: 'TCP', desc: 'SMTP邮件提交' },
+        { port: 993, name: 'IMAPS', proto: 'TCP', desc: '安全IMAP' },
+        { port: 995, name: 'POP3S', proto: 'TCP', desc: '安全POP3' },
+        { port: 1433, name: 'MSSQL', proto: 'TCP', desc: 'Microsoft SQL Server' },
+        { port: 1521, name: 'Oracle DB', proto: 'TCP', desc: 'Oracle数据库' },
+        { port: 3306, name: 'MySQL', proto: 'TCP', desc: 'MySQL数据库' },
+        { port: 3389, name: 'RDP', proto: 'TCP', desc: '远程桌面' },
+        { port: 5432, name: 'PostgreSQL', proto: 'TCP', desc: 'PostgreSQL数据库' },
+        { port: 5900, name: 'VNC', proto: 'TCP', desc: '虚拟网络计算' },
+        { port: 6379, name: 'Redis', proto: 'TCP', desc: 'Redis缓存' },
+        { port: 8080, name: 'HTTP-Alt', proto: 'TCP', desc: 'HTTP备用端口' },
+        { port: 8443, name: 'HTTPS-Alt', proto: 'TCP', desc: 'HTTPS备用端口' },
+        { port: 9090, name: 'Prometheus', proto: 'TCP', desc: 'Prometheus监控' },
+        { port: 9200, name: 'Elasticsearch', proto: 'TCP', desc: 'Elasticsearch REST' },
+        { port: 11211, name: 'Memcached', proto: 'UDP', desc: 'Memcached缓存' },
+        { port: 27017, name: 'MongoDB', proto: 'TCP', desc: 'MongoDB数据库' }
+      ];
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm)">
+          <input type="text" id="portCommonInput" placeholder="搜索端口号或名称…" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px;outline:none" oninput="ToolsApp._portCommon.search()">
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--space-sm)" id="portCommonGrid">
+          ${ports.map(p => `<div style="padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><strong>${p.port}</strong> <span style="color:var(--accent)">${p.name}</span> <span style="color:var(--text-muted)">${p.proto}</span><br><span style="color:var(--text-secondary);font-size:12px">${p.desc}</span></div>`).join('')}
+        </div>`;
+      const input = document.getElementById('portCommonInput');
+      const grid = document.getElementById('portCommonGrid');
+      ToolsApp._portCommon = {
+        search() {
+          const q = input.value.toLowerCase();
+          const filtered = ports.filter(p => p.port.toString().includes(q) || p.name.toLowerCase().includes(q) || p.desc.includes(q));
+          grid.innerHTML = filtered.map(p => `<div style="padding:8px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><strong>${p.port}</strong> <span style="color:var(--accent)">${p.name}</span> <span style="color:var(--text-muted)">${p.proto}</span><br><span style="color:var(--text-secondary);font-size:12px">${p.desc}</span></div>`).join('');
+        }
+      };
+    });
+  });
+
+  /* ===== Percentage Calculator ===== */
+  Router.register('percentage-calc', (container) => {
+    renderToolPage(container, '百分比计算器', '百分比、比例、增长率计算', (body) => {
+      body.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-lg)">
+          <div style="padding:var(--space-lg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="tool-section-label">求百分比</div>
+            <div style="margin:var(--space-md) 0;display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap">
+              <input type="number" id="pct1Num" value="20" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"> /
+              <input type="number" id="pct1Den" value="100" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+              <button class="tool-btn primary" onclick="ToolsApp._pct.calcPercent()">=</button>
+            </div>
+            <div style="font-size:24px;font-weight:700;color:var(--accent)" id="pct1Result">20%</div>
+          </div>
+          <div style="padding:var(--space-lg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="tool-section-label">求数值</div>
+            <div style="margin:var(--space-md) 0;display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap">
+              <input type="number" id="pct2Pct" value="15" style="width:70px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">% of
+              <input type="number" id="pct2Of" value="200" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+              <button class="tool-btn primary" onclick="ToolsApp._pct.calcValue()">=</button>
+            </div>
+            <div style="font-size:24px;font-weight:700;color:var(--accent)" id="pct2Result">30</div>
+          </div>
+          <div style="padding:var(--space-lg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="tool-section-label">增长率</div>
+            <div style="margin:var(--space-md) 0;display:flex;gap:var(--space-sm);align-items:center;flex-wrap:wrap">
+              <input type="number" id="pct3Old" value="100" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)"> →
+              <input type="number" id="pct3New" value="150" style="width:80px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+              <button class="tool-btn primary" onclick="ToolsApp._pct.calcGrowth()">=</button>
+            </div>
+            <div style="font-size:24px;font-weight:700;color:var(--accent)" id="pct3Result">+50%</div>
+          </div>
+        </div>`;
+      ToolsApp._pct = {
+        calcPercent() {
+          const n = parseFloat(document.getElementById('pct1Num').value) || 0;
+          const d = parseFloat(document.getElementById('pct1Den').value) || 1;
+          document.getElementById('pct1Result').textContent = (n / d * 100).toFixed(2) + '%';
+        },
+        calcValue() {
+          const p = parseFloat(document.getElementById('pct2Pct').value) || 0;
+          const o = parseFloat(document.getElementById('pct2Of').value) || 0;
+          document.getElementById('pct2Result').textContent = (p / 100 * o).toFixed(2);
+        },
+        calcGrowth() {
+          const oldV = parseFloat(document.getElementById('pct3Old').value) || 0;
+          const newV = parseFloat(document.getElementById('pct3New').value) || 0;
+          if (oldV === 0) { document.getElementById('pct3Result').textContent = '—'; return; }
+          const g = (newV - oldV) / oldV * 100;
+          document.getElementById('pct3Result').textContent = (g >= 0 ? '+' : '') + g.toFixed(2) + '%';
+        }
+      };
+      ToolsApp._pct.calcPercent(); ToolsApp._pct.calcValue(); ToolsApp._pct.calcGrowth();
+    });
+  });
+
+  /* ===== BMI Calculator ===== */
+  Router.register('bmi-calculator', (container) => {
+    renderToolPage(container, 'BMI计算器', '身体质量指数计算与评估', (body) => {
+      body.innerHTML = `
+        <div style="max-width:500px;margin:0 auto;padding:var(--space-xl)">
+          <div class="tool-section-label">身高</div>
+          <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md)">
+            <input type="number" id="bmiH" value="175" min="50" max="250" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:16px">
+            <select id="bmiHUnit" style="padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+              <option value="cm">厘米 (cm)</option><option value="m">米 (m)</option>
+            </select>
+          </div>
+          <div class="tool-section-label">体重</div>
+          <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-lg)">
+            <input type="number" id="bmiW" value="70" min="10" max="500" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:16px">
+            <select id="bmiWUnit" style="padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)">
+              <option value="kg">公斤 (kg)</option><option value="lb">磅 (lb)</option>
+            </select>
+          </div>
+          <button class="tool-btn primary" onclick="ToolsApp._bmi.calc()" style="width:100%;padding:12px;font-size:16px">计算BMI</button>
+          <div style="margin-top:var(--space-lg);text-align:center">
+            <div id="bmiValue" style="font-size:48px;font-weight:700;color:var(--accent)">22.9</div>
+            <div id="bmiCategory" style="font-size:18px;color:var(--success);margin-top:var(--space-sm)">正常范围</div>
+            <div style="margin-top:var(--space-md);display:flex;gap:4px;height:8px;border-radius:4px;overflow:hidden">
+              <div style="flex:0.5;background:#3B82F6" title="过轻"></div>
+              <div style="flex:0.5;background:#10B981" title="正常"></div>
+              <div style="flex:0.25;background:#F59E0B" title="超重"></div>
+              <div style="flex:0.25;background:#EF4444" title="肥胖"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:4px">
+              <span>过轻 < 18.5</span><span>正常 18.5-24</span><span>超重 24-28</span><span>肥胖 > 28</span>
+            </div>
+          </div>
+        </div>`;
+      ToolsApp._bmi = {
+        calc() {
+          let h = parseFloat(document.getElementById('bmiH').value) || 0;
+          const w = parseFloat(document.getElementById('bmiW').value) || 0;
+          if (document.getElementById('bmiHUnit').value === 'cm') h /= 100;
+          const wKg = document.getElementById('bmiWUnit').value === 'lb' ? w * 0.453592 : w;
+          if (h <= 0 || wKg <= 0) { document.getElementById('bmiValue').textContent = '—'; document.getElementById('bmiCategory').textContent = '请输入有效数值'; return; }
+          const bmi = wKg / (h * h);
+          document.getElementById('bmiValue').textContent = bmi.toFixed(1);
+          let cat, color;
+          if (bmi < 18.5) { cat = '过轻'; color = '#3B82F6'; }
+          else if (bmi < 24) { cat = '正常范围'; color = '#10B981'; }
+          else if (bmi < 28) { cat = '超重'; color = '#F59E0B'; }
+          else { cat = '肥胖'; color = '#EF4444'; }
+          document.getElementById('bmiCategory').textContent = cat;
+          document.getElementById('bmiCategory').style.color = color;
+        }
+      };
+      ToolsApp._bmi.calc();
+    });
+  });
+
+  /* ===== Roman Numeral ===== */
+  Router.register('roman-numeral', (container) => {
+    renderToolPage(container, '罗马数字转换', '阿拉伯数字与罗马数字互转', (body) => {
+      body.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-lg)">
+          <div style="padding:var(--space-lg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="tool-section-label">数字→罗马数字</div>
+            <div style="display:flex;gap:var(--space-sm);margin-top:var(--space-md)">
+              <input type="number" id="romNum" value="2026" min="1" max="3999" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:16px">
+              <button class="tool-btn primary" onclick="ToolsApp._rom.toRoman()">转换</button>
+            </div>
+            <div style="font-size:28px;font-weight:700;color:var(--accent);margin-top:var(--space-md);font-family:serif" id="romResult">MMXXVI</div>
+          </div>
+          <div style="padding:var(--space-lg);background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius)">
+            <div class="tool-section-label">罗马数字→数字</div>
+            <div style="display:flex;gap:var(--space-sm);margin-top:var(--space-md)">
+              <input type="text" id="romRoman" value="MMXXVI" style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-family:serif;font-size:16px">
+              <button class="tool-btn primary" onclick="ToolsApp._rom.fromRoman()">转换</button>
+            </div>
+            <div style="font-size:28px;font-weight:700;color:var(--accent);margin-top:var(--space-md)" id="romNumResult">2026</div>
+          </div>
+        </div>`;
+      ToolsApp._rom = {
+        toRoman() {
+          let n = parseInt(document.getElementById('romNum').value) || 0;
+          if (n < 1 || n > 3999) { document.getElementById('romResult').textContent = '范围: 1-3999'; return; }
+          const vals = [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+          let r = '';
+          for (const [v, s] of vals) { while (n >= v) { r += s; n -= v; } }
+          document.getElementById('romResult').textContent = r;
+        },
+        fromRoman() {
+          const s = document.getElementById('romRoman').value.trim().toUpperCase();
+          const map = { 'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000 };
+          let r = 0;
+          for (let i = 0; i < s.length; i++) {
+            const c = map[s[i]] || 0, n = map[s[i + 1]] || 0;
+            r += c < n ? -c : c;
+          }
+          document.getElementById('romNumResult').textContent = r || '无效';
+        }
+      };
+      ToolsApp._rom.toRoman(); ToolsApp._rom.fromRoman();
+    });
+  });
+
+  /* ===== Number to Words (Chinese) ===== */
+  Router.register('number-to-words', (container) => {
+    renderToolPage(container, '数字转中文', '阿拉伯数字转中文大小写', (body) => {
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);display:flex;gap:var(--space-sm);align-items:center">
+          <input type="text" id="ntwInput" value="12345.67" style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:16px;outline:none">
+          <button class="tool-btn primary" onclick="ToolsApp._ntw.convert()">转换</button>
+        </div>
+        <div class="tool-output" id="ntwLower" style="min-height:80px;font-size:16px">一万二千三百四十五点六七</div>
+        <div class="tool-section-label" style="margin-top:var(--space-md)">大写（用于金额）</div>
+        <div class="tool-output" id="ntwUpper" style="min-height:80px;font-size:16px">壹万贰仟叁佰肆拾伍点陆柒</div>`;
+      const input = document.getElementById('ntwInput');
+      const lowerEl = document.getElementById('ntwLower');
+      const upperEl = document.getElementById('ntwUpper');
+      const digits = ['零','一','二','三','四','五','六','七','八','九'];
+      const digitsUpper = ['零','壹','贰','叁','肆','伍','陆','柒','捌','玖'];
+      const units = ['','十','百','千','万','十','百','千','亿'];
+      const unitsUpper = ['','拾','佰','仟','万','拾','佰','仟','亿'];
+      function numToChinese(num, d, u) {
+        if (num === 0) return d[0];
+        const parts = num.toString().split('.');
+        const intPart = parseInt(parts[0]);
+        const decPart = parts[1] || '';
+        let result = '';
+        const str = intPart.toString();
+        const len = str.length;
+        for (let i = 0; i < len; i++) {
+          const digit = parseInt(str[i]);
+          const pos = len - 1 - i;
+          if (digit === 0) {
+            if (pos % 4 === 0 && i > 0) result += u[pos];
+            else if (i > 0 && parseInt(str[i-1]) !== 0) result += d[0];
+          } else {
+            result += d[digit] + u[pos];
+          }
+        }
+        if (decPart) {
+          result += '点';
+          for (const c of decPart) result += d[parseInt(c)] || '';
+        }
+        return result;
+      }
+      ToolsApp._ntw = {
+        convert() {
+          const val = parseFloat(input.value);
+          if (isNaN(val)) { lowerEl.textContent = '无效数字'; upperEl.textContent = ''; return; }
+          lowerEl.textContent = numToChinese(val, digits, units);
+          upperEl.textContent = numToChinese(val, digitsUpper, unitsUpper);
+        }
+      };
+      ToolsApp._ntw.convert();
+    });
+  });
+
+  /* ===== Password Strength ===== */
+  Router.register('password-strength', (container) => {
+    renderToolPage(container, '密码强度检测', '检测密码强度与安全性', (body) => {
+      body.innerHTML = `
+        <div style="max-width:600px;margin:0 auto;padding:var(--space-lg)">
+          <div style="margin-bottom:var(--space-md);position:relative">
+            <input type="text" id="pwsInput" placeholder="输入要检测的密码…" style="width:100%;padding:12px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:16px;outline:none" oninput="ToolsApp._pws.check()">
+          </div>
+          <div style="height:8px;background:var(--bg-hover);border-radius:4px;overflow:hidden;margin-bottom:var(--space-sm)">
+            <div id="pwsBar" style="height:100%;width:0%;border-radius:4px;transition:all 0.3s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-lg)">
+            <span id="pwsStrength" style="font-size:14px;color:var(--text-muted)">请输入密码</span>
+            <span id="pwsScore" style="font-size:14px;color:var(--text-muted)">0/100</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-sm)">
+            <div id="pwsLen" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 长度 ≥ 8</div>
+            <div id="pwsUpper" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 大写字母</div>
+            <div id="pwsLower" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 小写字母</div>
+            <div id="pwsDigit" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 数字</div>
+            <div id="pwsSymbol" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 特殊符号</div>
+            <div id="pwsUnique" style="padding:8px;border-radius:var(--radius-sm);font-size:13px;background:var(--bg-card);border:1px solid var(--border)">⬜ 无重复字符3+次</div>
+          </div>
+        </div>`;
+      function updateCheck(id, ok, label) {
+        const el = document.getElementById(id);
+        el.innerHTML = (ok ? '✅' : '⬜') + ' ' + label;
+        el.style.borderColor = ok ? 'var(--success)' : 'var(--border)';
+      }
+      ToolsApp._pws = {
+        check() {
+          const pwd = document.getElementById('pwsInput').value;
+          const len = pwd.length;
+          const hasUpper = /[A-Z]/.test(pwd);
+          const hasLower = /[a-z]/.test(pwd);
+          const hasDigit = /\d/.test(pwd);
+          const hasSymbol = /[^A-Za-z0-9]/.test(pwd);
+          const uniqueOk = !pwd.split('').some((c, i) => pwd.indexOf(c) !== pwd.lastIndexOf(c) && pwd.lastIndexOf(c) - pwd.indexOf(c) >= 2);
+          updateCheck('pwsLen', len >= 8, '长度 ≥ 8 (' + len + ')');
+          updateCheck('pwsUpper', hasUpper, '大写字母');
+          updateCheck('pwsLower', hasLower, '小写字母');
+          updateCheck('pwsDigit', hasDigit, '数字');
+          updateCheck('pwsSymbol', hasSymbol, '特殊符号');
+          updateCheck('pwsUnique', uniqueOk, '无重复字符3+次');
+          let score = 0;
+          score += Math.min(len * 4, 40);
+          if (hasUpper) score += 10;
+          if (hasLower) score += 10;
+          if (hasDigit) score += 10;
+          if (hasSymbol) score += 15;
+          if (len >= 12) score += 10;
+          if (hasUpper && hasLower && hasDigit && hasSymbol && len >= 8) score += 5;
+          score = Math.min(score, 100);
+          document.getElementById('pwsScore').textContent = score + '/100';
+          const bar = document.getElementById('pwsBar');
+          const strEl = document.getElementById('pwsStrength');
+          if (score < 25) { bar.style.background = '#EF4444'; bar.style.width = score + '%'; strEl.textContent = '非常弱'; strEl.style.color = '#EF4444'; }
+          else if (score < 50) { bar.style.background = '#F59E0B'; bar.style.width = score + '%'; strEl.textContent = '弱'; strEl.style.color = '#F59E0B'; }
+          else if (score < 70) { bar.style.background = '#3B82F6'; bar.style.width = score + '%'; strEl.textContent = '中等'; strEl.style.color = '#3B82F6'; }
+          else if (score < 90) { bar.style.background = '#10B981'; bar.style.width = score + '%'; strEl.textContent = '强'; strEl.style.color = '#10B981'; }
+          else { bar.style.background = '#10B981'; bar.style.width = '100%'; strEl.textContent = '非常强'; strEl.style.color = '#10B981'; }
+        }
+      };
+    });
+  });
+
+  /* ===== Emoji Search ===== */
+  Router.register('emoji-search', (container) => {
+    renderToolPage(container, 'Emoji搜索', '搜索并复制Emoji表情符号', (body) => {
+      const emojis = [
+        { e: '😀', n: '笑脸', t: ['微笑', '开心', '高兴'] },
+        { e: '😂', n: '笑哭', t: ['笑', '哭', '开心'] },
+        { e: '🤣', n: '笑翻', t: ['笑', '滚', '开心'] },
+        { e: '😍', n: '爱心眼', t: ['爱', '喜欢', '心动'] },
+        { e: '🥰', n: '微笑爱心', t: ['爱', '喜欢', '开心'] },
+        { e: '😎', n: '墨镜笑', t: ['酷', '帅', '墨镜'] },
+        { e: '🤔', n: '思考', t: ['想', '思考', '疑问'] },
+        { e: '😴', n: '睡觉', t: ['睡', '困', '晚安'] },
+        { e: '😭', n: '大哭', t: ['哭', '伤心', '泪'] },
+        { e: '😡', n: '生气', t: ['怒', '生气', '气愤'] },
+        { e: '👍', n: '赞', t: ['好', '赞', '同意'] },
+        { e: '👎', n: '踩', t: ['差', '反对', '不好'] },
+        { e: '👏', n: '鼓掌', t: ['鼓掌', '欢迎', '好'] },
+        { e: '🙏', n: '合十', t: ['祈祷', '谢谢', '拜托'] },
+        { e: '💪', n: '肌肉', t: ['强壮', '加油', '力量'] },
+        { e: '❤️', n: '红心', t: ['爱', '心', '喜欢'] },
+        { e: '🔥', n: '火', t: ['热', '流行', '火'] },
+        { e: '⭐', n: '星星', t: ['星', '闪耀', '好评'] },
+        { e: '🎉', n: '庆祝', t: ['庆祝', '派对', '彩带'] },
+        { e: '🎂', n: '蛋糕', t: ['生日', '蛋糕', '庆祝'] },
+        { e: '🎁', n: '礼物', t: ['礼物', '礼品', '包装'] },
+        { e: '📱', n: '手机', t: ['电话', '手机', '移动'] },
+        { e: '💻', n: '电脑', t: ['电脑', '笔记本', '编程'] },
+        { e: '⌨️', n: '键盘', t: ['键盘', '打字', '输入'] },
+        { e: '🖱️', n: '鼠标', t: ['鼠标', '电脑'] },
+        { e: '🔧', n: '工具', t: ['工具', '扳手', '维修'] },
+        { e: '📁', n: '文件夹', t: ['文件夹', '文件', '目录'] },
+        { e: '📝', n: '备忘录', t: ['笔记', '备忘录', '文档'] },
+        { e: '✅', n: '勾选', t: ['对', '完成', '正确'] },
+        { e: '❌', n: '叉号', t: ['错', '取消', '错误'] },
+        { e: '⚠️', n: '警告', t: ['警告', '注意', '小心'] },
+        { e: '🚀', n: '火箭', t: ['火箭', '发射', '快速'] },
+        { e: '📊', n: '图表', t: ['图表', '统计', '数据'] },
+        { e: '🌐', n: '地球', t: ['地球', '网络', '全球'] },
+        { e: '🕐', n: '时钟', t: ['时间', '时钟', '小时'] },
+        { e: '🔒', n: '锁', t: ['锁', '安全', '加密'] },
+        { e: '🔑', n: '钥匙', t: ['钥匙', '密码', '密钥'] }
+      ];
+      body.innerHTML = `
+        <div style="margin-bottom:var(--space-md);position:relative">
+          <input type="text" id="emojiSearchInput" placeholder="搜索Emoji（中文名或标签）…" style="width:100%;padding:12px 16px 12px 40px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);font-size:14px;outline:none" oninput="ToolsApp._emoji.search()">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px">🔍</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:var(--space-sm)" id="emojiGrid">
+          ${emojis.map(e => `<div style="text-align:center;padding:8px;cursor:pointer;border-radius:var(--radius-sm);background:var(--bg-card);border:1px solid var(--border);transition:var(--transition);font-size:28px" onclick="ToolsApp._emoji.copy('${e.e}')" title="${e.n}">${e.e}</div>`).join('')}
+        </div>
+        <div style="margin-top:var(--space-sm);text-align:center;color:var(--text-muted);font-size:13px">点击Emoji复制到剪贴板</div>`;
+      ToolsApp._emoji = {
+        search() {
+          const q = document.getElementById('emojiSearchInput').value.toLowerCase();
+          const grid = document.getElementById('emojiGrid');
+          const filtered = emojis.filter(e => e.n.includes(q) || e.t.some(t => t.includes(q)));
+          grid.innerHTML = filtered.map(e => `<div style="text-align:center;padding:8px;cursor:pointer;border-radius:var(--radius-sm);background:var(--bg-card);border:1px solid var(--border);transition:var(--transition);font-size:28px" onclick="ToolsApp._emoji.copy('${e.e}')" title="${e.n}">${e.e}</div>`).join('');
+        },
+        copy(e) { copyText(e); }
+      };
+    });
+  });
+
+  /* ===== Keyboard Test ===== */
+  Router.register('keyboard-test', (container) => {
+    renderToolPage(container, '键盘测试', '测试键盘按键是否正常', (body) => {
+      body.innerHTML = `
+        <div style="text-align:center;padding:var(--space-lg)">
+          <p style="color:var(--text-secondary);margin-bottom:var(--space-lg)">按下任意键盘按键测试</p>
+          <div style="margin-bottom:var(--space-lg)">
+            <div style="font-size:64px;font-weight:700;font-family:var(--font-mono);color:var(--accent);min-height:80px" id="ktKey">—</div>
+            <div style="font-size:14px;color:var(--text-muted);margin-top:var(--space-sm)" id="ktCode">等待输入…</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-sm);max-width:500px;margin:0 auto">
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Key:</span><br><strong id="ktKeyName">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Code:</span><br><strong id="ktCodeName">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Alt:</span><br><strong id="ktAlt">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Ctrl:</span><br><strong id="ktCtrl">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Shift:</span><br><strong id="ktShift">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Meta:</span><br><strong id="ktMeta">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Repeat:</span><br><strong id="ktRepeat">—</strong></div>
+            <div style="padding:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px"><span class="tool-setting-label">Location:</span><br><strong id="ktLoc">—</strong></div>
+          </div>
+          <button class="tool-btn" style="margin-top:var(--space-lg)" onclick="ToolsApp._kt.reset()">重置</button>
+        </div>`;
+      document.addEventListener('keydown', function ktHandler(e) {
+        document.getElementById('ktKey').textContent = e.key;
+        document.getElementById('ktCode').textContent = 'keydown: ' + e.code;
+        document.getElementById('ktKeyName').textContent = e.key;
+        document.getElementById('ktCodeName').textContent = e.code;
+        document.getElementById('ktAlt').textContent = e.altKey ? '是' : '否';
+        document.getElementById('ktCtrl').textContent = e.ctrlKey ? '是' : '否';
+        document.getElementById('ktShift').textContent = e.shiftKey ? '是' : '否';
+        document.getElementById('ktMeta').textContent = e.metaKey ? '是' : '否';
+        document.getElementById('ktRepeat').textContent = e.repeat ? '是' : '否';
+        const locs = { 0: '标准', 1: '左侧', 2: '右侧', 3: '数字键盘' };
+        document.getElementById('ktLoc').textContent = locs[e.location] || e.location;
+        e.preventDefault();
+      });
+      ToolsApp._kt = {
+        reset() {
+          ['ktKey','ktKeyName','ktCodeName','ktAlt','ktCtrl','ktShift','ktMeta','ktRepeat','ktLoc'].forEach(id => document.getElementById(id).textContent = '—');
+          document.getElementById('ktCode').textContent = '等待输入…';
+        }
+      };
+    });
+  });
+
+  /* ===== CSV to Markdown ===== */
+  Router.register('csv-to-md', (container) => {
+    renderToolPage(container, 'CSV转Markdown', 'CSV数据转换为Markdown表格', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 CSV</div>
+            <textarea class="tool-textarea" id="c2mInput" placeholder="粘贴CSV数据…">name,age,city
+Alice,28,Beijing
+Bob,35,Shanghai
+Charlie,22,Guangzhou</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">Markdown 表格</div>
+            <div class="tool-output" id="c2mOutput">转换结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._c2m.convert()">转换</button>
+          <button class="tool-btn" onclick="ToolsApp._c2mCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('c2mInput');
+      const output = document.getElementById('c2mOutput');
+      let lastResult = '';
+      ToolsApp._c2m = {
+        convert() {
+          const lines = input.value.split('\n').filter(l => l.trim());
+          if (lines.length < 1) { output.textContent = '请输入CSV数据'; return; }
+          const rows = lines.map(l => l.split(',').map(c => c.trim()));
+          const sep = '|' + rows[0].map(() => '---').join('|') + '|';
+          const md = rows.map(r => '|' + r.join('|') + '|');
+          lastResult = [md[0], sep, ...md.slice(1)].join('\n');
+          output.textContent = lastResult;
+        }
+      };
+      ToolsApp._c2mCopy = () => copyText(lastResult);
+    });
+  });
+
+  /* ===== Markdown Table Generator ===== */
+  Router.register('markdown-table', (container) => {
+    renderToolPage(container, 'Markdown表格生成', '可视化编辑生成Markdown表格', (body) => {
+      body.innerHTML = `
+        <div style="display:flex;gap:var(--space-sm);margin-bottom:var(--space-md);align-items:center;flex-wrap:wrap">
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">列数</span><input type="number" id="mtCols" value="3" min="1" max="10" style="width:60px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)" onchange="ToolsApp._mt.resize()"></div>
+          <div style="flex-direction:column;display:flex;gap:4px"><span class="tool-setting-label">行数</span><input type="number" id="mtRows" value="4" min="2" max="20" style="width:60px;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text)" onchange="ToolsApp._mt.resize()"></div>
+          <button class="tool-btn" onclick="ToolsApp._mt.generate()">生成Markdown</button>
+          <button class="tool-btn" onclick="ToolsApp._mtCopy()">复制</button>
+        </div>
+        <div style="overflow-x:auto;margin-bottom:var(--space-md)" id="mtEditor"></div>
+        <div class="tool-output" id="mtOutput" style="min-height:100px">—</div>`;
+      let lastResult = '';
+      ToolsApp._mt = {
+        resize() {
+          const cols = parseInt(document.getElementById('mtCols').value) || 3;
+          const rows = parseInt(document.getElementById('mtRows').value) || 4;
+          const editor = document.getElementById('mtEditor');
+          let table = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+          for (let r = 0; r < rows; r++) {
+            table += '<tr>';
+            for (let c = 0; c < cols; c++) {
+              const val = r === 0 ? `列${c + 1}` : `数据${r}-${c + 1}`;
+              table += `<td style="border:1px solid var(--border);padding:6px"><input type="text" value="${val}" class="mt-cell" style="width:100%;border:none;background:transparent;color:var(--text);font-size:13px;text-align:center" data-r="${r}" data-c="${c}"></td>`;
+            }
+            table += '</tr>';
+          }
+          table += '</table>';
+          editor.innerHTML = table;
+          editor.querySelectorAll('.mt-cell').forEach(inp => inp.addEventListener('input', () => ToolsApp._mt.generate()));
+          ToolsApp._mt.generate();
+        },
+        generate() {
+          const cells = document.querySelectorAll('.mt-cell');
+          if (!cells.length) return;
+          const cols = parseInt(document.getElementById('mtCols').value) || 3;
+          const rows = parseInt(document.getElementById('mtRows').value) || 4;
+          const data = [];
+          cells.forEach(c => { const r = parseInt(c.dataset.r); if (!data[r]) data[r] = []; data[r][parseInt(c.dataset.c)] = c.value; });
+          const sep = '|' + Array(cols).fill('---').join('|') + '|';
+          const md = data.map(r => '|' + Array.from({length: cols}, (_, i) => r[i] || '').join('|') + '|');
+          lastResult = [md[0], sep, ...md.slice(1)].join('\n');
+          document.getElementById('mtOutput').textContent = lastResult;
+        }
+      };
+      ToolsApp._mtCopy = () => copyText(lastResult);
+      ToolsApp._mt.resize();
+    });
+  });
+
+  /* ===== JSON to CSV ===== */
+  Router.register('json-to-csv', (container) => {
+    renderToolPage(container, 'JSON转CSV', 'JSON数据转换为CSV格式', (body) => {
+      body.innerHTML = `
+        <div class="tool-layout">
+          <div class="tool-input-area">
+            <div class="tool-section-label">输入 JSON</div>
+            <textarea class="tool-textarea" id="j2cInput" placeholder='粘贴JSON数组…'>[{"name":"Alice","age":28,"city":"Beijing"},{"name":"Bob","age":35,"city":"Shanghai"}]</textarea>
+          </div>
+          <div class="tool-output-area">
+            <div class="tool-section-label">CSV 输出</div>
+            <div class="tool-output" id="j2cOutput">转换结果将显示在这里</div>
+          </div>
+        </div>
+        <div class="tool-actions">
+          <button class="tool-btn primary" onclick="ToolsApp._j2c.convert()">转换</button>
+          <button class="tool-btn" onclick="ToolsApp._j2cCopy()">复制</button>
+        </div>`;
+      const input = document.getElementById('j2cInput');
+      const output = document.getElementById('j2cOutput');
+      let lastResult = '';
+      ToolsApp._j2c = {
+        convert() {
+          try {
+            const data = JSON.parse(input.value);
+            if (!Array.isArray(data) || data.length === 0) { output.textContent = '请输入JSON数组'; return; }
+            const keys = [...new Set(data.flatMap(Object.keys))];
+            const header = keys.join(',');
+            const rows = data.map(obj => keys.map(k => {
+              const v = obj[k];
+              if (v === null || v === undefined) return '';
+              const s = String(v);
+              return s.includes(',') || s.includes('"') || s.includes('\n') ? '"' + s.replace(/"/g, '""') + '"' : s;
+            }).join(','));
+            lastResult = [header, ...rows].join('\n');
+            output.textContent = lastResult;
+          } catch (e) { output.innerHTML = `<div class="tool-error">${e.message}</div>`; }
+        }
+      };
+      ToolsApp._j2cCopy = () => copyText(lastResult);
+    });
+  });
+
 })();
