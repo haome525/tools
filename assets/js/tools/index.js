@@ -4100,8 +4100,8 @@ arr.forEach(item => {
       const n = navigator;
       const info = [
         ['User Agent', n.userAgent],
-        ['浏览器', (() => { const ua = n.userAgent; if (ua.includes('Edg/')) return 'Edge ' + ua.match(/Edg\/([\d.]+)/)?.[1]; if (ua.includes('Chrome/')) return 'Chrome ' + ua.match(/Chrome\/([\d.]+)/)?.[1]; if (ua.includes('Firefox/')) return 'Firefox ' + ua.match(/Firefox\/([\d.]+)/)?.[1]; if (ua.includes('Safari/')) return 'Safari ' + ua.match(/Version\/([\d.]+)/)?.[1]; return 'Unknown'; })(),
-        ['操作系统', (() => { const p = n.platform; if (p.includes('Win')) return 'Windows'; if (p.includes('Mac')) return 'macOS'; if (p.includes('Linux')) return 'Linux'; return p; })(),
+        ['浏览器', (() => { const ua = n.userAgent; if (ua.includes('Edg/')) return 'Edge ' + ua.match(/Edg\/([\d.]+)/)?.[1]; if (ua.includes('Chrome/')) return 'Chrome ' + ua.match(/Chrome\/([\d.]+)/)?.[1]; if (ua.includes('Firefox/')) return 'Firefox ' + ua.match(/Firefox\/([\d.]+)/)?.[1]; if (ua.includes('Safari/')) return 'Safari ' + ua.match(/Version\/([\d.]+)/)?.[1]; return 'Unknown'; })()],
+        ['操作系统', (() => { const p = n.platform; if (p.includes('Win')) return 'Windows'; if (p.includes('Mac')) return 'macOS'; if (p.includes('Linux')) return 'Linux'; return p; })()],
         ['语言', n.language],
         ['屏幕分辨率', screen.width + '×' + screen.height],
         ['可用屏幕', screen.availWidth + '×' + screen.availHeight],
