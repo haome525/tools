@@ -53,7 +53,26 @@
       if (handler) {
         handler(content);
       } else {
-        content.innerHTML = '<div class="tool-empty"><div class="tool-empty-icon">🔍</div><p>工具未找到</p><a href="#/home" class="tool-btn" style="margin-top:16px">返回首页</a></div>';
+        // 查找工具信息
+        const tool = TOOLS_DATA.tools.find(t => t.id === hash);
+        if (tool) {
+          content.innerHTML = `
+            <div class="tool-page">
+              <div class="tool-header">
+                <a class="tool-back" href="#/home">← 返回</a>
+                <h1 class="tool-title">${tool.name}</h1>
+                <span class="tool-desc">${tool.desc}</span>
+              </div>
+              <div class="tool-body" style="text-align:center;padding:64px 24px;color:var(--text-muted)">
+                <div style="font-size:48px;margin-bottom:16px">🚧</div>
+                <p style="font-size:16px;margin-bottom:8px">功能开发中</p>
+                <p style="font-size:14px">该工具正在开发完善中，敬请期待</p>
+                <a href="#/home" class="tool-btn" style="margin-top:24px;display:inline-flex">返回工具箱</a>
+              </div>
+            </div>`;
+        } else {
+          content.innerHTML = '<div class="tool-empty"><div class="tool-empty-icon">🔍</div><p>工具未找到</p><a href="#/home" class="tool-btn" style="margin-top:16px">返回首页</a></div>';
+        }
       }
       window.scrollTo(0, 0);
     },

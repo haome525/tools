@@ -1,54 +1,43 @@
-<!DOCTYPE html>
-<html lang="zh-CN" data-theme="ink" data-mode="light">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>工具箱 — haome525</title>
-  <meta name="description" content="haome525 在线工具箱 — 开发者和设计师的效率工具集合">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧰</text></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/tools.css">
-  <script>
-    (function(){
-      try{
-        var t=localStorage.getItem('hao-theme')||'ink';
-        var m=localStorage.getItem('hao-mode');
-        if(!m)m=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
-        document.documentElement.setAttribute('data-theme',t);
-        document.documentElement.setAttribute('data-mode',m);
-      }catch(e){}
-    })();
-  </script>
-</head>
-<body>
+---
+layout: modern-page
+title: 工具箱
+description: 开发者和设计师的效率工具集合
+extra_css: "/tools/assets/css/tools.css"
+---
 
-  <nav class="topnav">
-    <div class="topnav-inner">
-      <a href="/" class="topnav-brand">haome525</a>
-      <div class="topnav-links">
-        <a href="/">首页</a>
-        <a href="/navigation/">导航</a>
-        <a href="/tools/" class="active">工具</a>
-        <a href="/blog/">博客</a>
-        <a href="/tech/">技术</a>
-        <a href="/about/">关于</a>
-      </div>
-      <div class="topnav-actions">
-        <button class="icon-btn" id="themeToggle" title="切换主题">🌙</button>
-      </div>
+<script>
+  (function(){
+    try{
+      var t=localStorage.getItem('hao-theme')||'ink';
+      var m=localStorage.getItem('hao-mode');
+      if(!m)m=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';
+      document.documentElement.setAttribute('data-theme',t);
+      document.documentElement.setAttribute('data-mode',m);
+    }catch(e){}
+  })();
+</script>
+
+<nav class="topnav" style="position:sticky;top:0;z-index:100;background:var(--bg-card);border-bottom:1px solid var(--border)">
+  <div class="topnav-inner" style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;align-items:center;height:56px;gap:24px">
+    <a href="/" class="topnav-brand" style="font-weight:700;font-size:18px;color:var(--text);text-decoration:none">haome525</a>
+    <div class="topnav-links" style="display:flex;gap:16px;margin-left:auto;align-items:center">
+      <a href="/" style="font-size:14px;color:var(--text-secondary);text-decoration:none">首页</a>
+      <a href="/navigation/" style="font-size:14px;color:var(--text-secondary);text-decoration:none">导航</a>
+      <a href="/tools/" style="font-size:14px;color:var(--accent);text-decoration:none;border-bottom:2px solid var(--accent);padding-bottom:2px">工具</a>
+      <a href="/blog/" style="font-size:14px;color:var(--text-secondary);text-decoration:none">博客</a>
+      <a href="/tech/" style="font-size:14px;color:var(--text-secondary);text-decoration:none">技术</a>
+      <a href="/about/" style="font-size:14px;color:var(--text-secondary);text-decoration:none">关于</a>
     </div>
-  </nav>
+    <button id="themeToggle" style="width:36px;height:36px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card);color:var(--text-secondary);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px" title="切换主题">🌙</button>
+  </div>
+</nav>
 
-  <main id="tool-content"></main>
+<main id="tool-content"></main>
 
-  <footer class="footer">
-    <p>&copy; 2026 haome525 · <a href="/">返回主站</a> · 所有工具在浏览器本地运行，数据不上传服务器</p>
-  </footer>
+<footer style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;border-top:1px solid var(--border);margin-top:64px">
+  <p>&copy; 2026 haome525 · <a href="/" style="color:var(--accent)">返回主站</a> · 所有工具在浏览器本地运行，数据不上传服务器</p>
+</footer>
 
-  <script src="assets/js/tools-data.js"></script>
-  <script src="assets/js/tools.js"></script>
-  <script src="assets/js/tools/index.js"></script>
-</body>
-</html>
+<script src="/tools/assets/js/tools-data.js"></script>
+<script src="/tools/assets/js/tools.js"></script>
+<script src="/tools/assets/js/tools/index.js"></script>
